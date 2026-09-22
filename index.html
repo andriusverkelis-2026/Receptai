@@ -469,12 +469,14 @@ async function runFromVideo(){
     if (d.transcript) parts.push('Kas sakoma vaizdo įraše' + (d.language ? ' (' + d.language + ')' : '') + ':\n' + d.transcript);
     if (!parts.length) throw new Error('Vaizdo įrašas be aprašymo ir be kalbos — įklijuok tekstą ranka.');
     $('fRaw').value = parts.join('\n\n');
-    $('vidBtn').textContent = 'AI tvarko receptą…';
-    applyRecipe(await callClaude($('fRaw').value));
+    if (d.title && !$('fName').value) $('fName').value = d.title.replace(/^[\d.,]+[KM]? views.*?\| ?/i,'').slice(0,80);
     let added = 0;
     for (const f of (d.frames||[])) { if (photos.length >= 3) break; photos.push(f); added++; }
     renderPhotos();
-    ok('Receptas ištrauktas' + (added ? `, pridėti ${added} kadrai.` : '.') + ' Peržiūrėk ir išsaugok.');
+    ok('Aprašymas ir ' + added + ' kadrai gauti. AI tvarko receptą…');
+    $('vidBtn').textContent = 'AI tvarko receptą…';
+    try { applyRecipe(await callClaude($('fRaw').value)); ok('Receptas ištrauktas' + (added ? `, pridėti ${added} kadrai.` : '.') + ' Peržiūrėk ir išsaugok.'); }
+    catch(e){ err('Aprašymas ir kadrai gauti, bet AI nesuveikė: ' + e.message + ' — spausk „Išversti ir sutvarkyti su AI“ dar kartą.'); }
   } catch(e){ err('Klaida: ' + e.message); }
   busy('vidBtn', false);
 }
