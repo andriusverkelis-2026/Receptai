@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Receptai</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3F5EE; --paper:#FFFFFF; --ink:#1E2A20; --muted:#68766B; --line:#DDE3D6;
+    --green:#2F5D3A; --green-dk:#224529; --mustard:#D9A61E; --danger:#B8402E;
+    --r:14px; --shadow:0 6px 24px rgba(30,42,32,.10);
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:16px;line-height:1.5}
+  h1,h2,h3{font-family:Fraunces,Georgia,serif;font-weight:700;margin:0;line-height:1.15}
+  button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+  input,textarea,select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--green);outline-offset:1px;border-color:var(--green)}
+  textarea{min-height:96px;resize:vertical}
+  label{display:block;font-size:14px;font-weight:500;margin:14px 0 6px}
+  .hidden{display:none!important}
+
+  /* header */
+  header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--green);color:#fff;padding:14px 16px 12px}
+  header .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  header h1{font-size:28px;color:#fff}
+  header h1 span{color:var(--mustard)}
+  .icon-btn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.14)}
+  .icon-btn svg{width:20px;height:20px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .search{margin-top:10px;display:flex;gap:8px}
+  .search input{border:0;background:#fff}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:10px 16px 4px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{white-space:nowrap;padding:7px 13px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:14px}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  /* grid */
+  main{padding:8px 16px 96px}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media(min-width:700px){.grid{grid-template-columns:repeat(4,1fr)}}
+  .card{background:var(--paper);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);text-align:left;padding:0;display:flex;flex-direction:column}
+  .card .ph{aspect-ratio:4/3;background:#E6EBDD;display:grid;place-items:center;color:var(--muted);font-size:34px;position:relative}
+  .card .ph img{width:100%;height:100%;object-fit:cover;display:block}
+  .src{position:absolute;left:8px;top:8px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;background:rgba(30,42,32,.75);color:#fff}
+  .card .t{padding:10px 12px 12px}
+  .card h3{font-size:16px;font-weight:600;font-family:Inter,sans-serif}
+  .card .k{font-size:12px;color:var(--muted);margin-top:3px}
+  .empty{text-align:center;color:var(--muted);padding:60px 20px;font-size:15px}
+  .empty b{display:block;color:var(--ink);font-family:Fraunces,serif;font-size:24px;margin-bottom:8px}
+
+  .fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:6;background:var(--mustard);color:var(--ink);font-weight:600;padding:14px 20px;border-radius:999px;box-shadow:var(--shadow);font-size:16px}
+
+  /* sheets */
+  .sheet{position:fixed;inset:0;z-index:20;background:var(--bg);overflow-y:auto;padding:0 16px calc(24px + env(safe-area-inset-bottom,0px))}
+  .sheet .bar{position:sticky;top:0;background:var(--bg);display:flex;align-items:center;justify-content:space-between;padding:calc(12px + env(safe-area-inset-top,0px)) 0 10px;z-index:2}
+  .sheet .bar h2{font-size:22px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:10px;font-weight:600;font-size:15px}
+  .btn.primary{background:var(--green);color:#fff}
+  .btn.primary:disabled{opacity:.6}
+  .btn.ghost{background:var(--paper);border:1px solid var(--line)}
+  .btn.danger{color:var(--danger)}
+  .btn.ai{background:var(--mustard);color:var(--ink);width:100%;margin-top:8px}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+  .photos .p{aspect-ratio:1;border-radius:10px;background:#E6EBDD;position:relative;overflow:hidden;display:grid;place-items:center;color:var(--muted)}
+  .photos .p img{width:100%;height:100%;object-fit:cover}
+  .photos .p .x{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border-radius:50%;width:24px;height:24px;font-size:14px}
+  .photos .add{border:2px dashed var(--line);font-size:28px}
+  .msg{padding:10px 12px;border-radius:10px;font-size:14px;margin-top:10px}
+  .msg.err{background:#FBE6E2;color:var(--danger)}
+  .msg.ok{background:#E3EFE4;color:var(--green-dk)}
+
+  /* detail */
+  .hero{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:8px;border-radius:var(--r);scrollbar-width:none}
+  .hero::-webkit-scrollbar{display:none}
+  .hero img,.hero iframe{flex:0 0 100%;scroll-snap-align:start;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r);border:0;background:#000;width:100%}
+  .detail h2{font-size:30px;margin:14px 0 4px}
+  .meta{color:var(--muted);font-size:14px;margin-bottom:8px}
+  .detail h3{font-size:20px;margin:22px 0 8px;padding-bottom:6px;border-bottom:2px solid var(--mustard);display:inline-block}
+  .ing{list-style:none;padding:0;margin:0}
+  .ing li{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+  .ing input{width:20px;height:20px;margin-top:3px;accent-color:var(--green);flex:none}
+  .ing li.done span{text-decoration:line-through;color:var(--muted)}
+  .steps{padding-left:0;list-style:none;counter-reset:s}
+  .steps li{counter-increment:s;display:flex;gap:12px;padding:10px 0}
+  .steps li::before{content:counter(s);flex:none;width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;font-weight:600;font-size:14px}
+  .linkbox{display:flex;align-items:center;gap:10px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px;text-decoration:none;color:var(--ink);font-size:14px;word-break:break-all}
+  .actions{display:flex;gap:10px;margin-top:28px}
+  .tags span{display:inline-block;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;margin:4px 6px 0 0}
+  .raw{white-space:pre-wrap;font-size:14px;color:var(--muted);background:var(--paper);border-radius:10px;padding:10px 12px}
+
+  /* login */
+  .login{min-height:100vh;display:grid;place-items:center;padding:24px}
+  .login .box{background:var(--paper);border-radius:20px;padding:28px 22px;width:100%;max-width:380px;box-shadow:var(--shadow)}
+  .login h1{font-size:36px;margin-bottom:4px}
+  .login h1 span{color:var(--mustard)}
+  .login p{color:var(--muted);margin:0 0 18px}
+  .login .btn{width:100%;margin-top:14px}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="login">
+  <div class="box">
+    <h1>Recep<span>tai</span></h1>
+    <p>Prisijunk, kad receptai sinchronizuotųsi tarp telefono ir kompiuterio.</p>
+    <label>El. paštas</label><input id="lEmail" type="email" autocomplete="email">
+    <label>Slaptažodis</label><input id="lPass" type="password" autocomplete="current-password">
+    <div id="lMsg"></div>
+    <button class="btn primary" onclick="login()">Prisijungti</button>
+    <button class="btn ghost" style="width:100%;margin-top:8px" onclick="register()">Sukurti paskyrą</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header>
+    <div class="row">
+      <h1>Recep<span>tai</span></h1>
+      <button class="icon-btn" onclick="openSettings()" aria-label="Nustatymai">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+      </button>
+    </div>
+    <div class="search"><input id="q" placeholder="Ieškoti recepto, ingrediento…" oninput="render()"></div>
+  </header>
+  <div class="chips" id="chips"></div>
+  <main><div id="grid" class="grid"></div><div id="empty" class="empty hidden"><b>Tuščia lentyna</b>Paspausk „Naujas receptas“ ir įklijuok nuorodą ar tekstą.</div></main>
+  <button class="fab" onclick="openForm()">+ Naujas receptas</button>
+</div>
+
+<!-- FORM -->
+<div id="form" class="sheet hidden">
+  <div class="bar"><h2 id="fTitle">Naujas receptas</h2><button class="btn ghost" onclick="closeForm()">Uždaryti</button></div>
+
+  <label>Nuoroda (Facebook, Instagram, YouTube, kita)</label>
+  <input id="fUrl" placeholder="https://…" oninput="detectSource()">
+  <div class="hint" id="fSrcHint">Be nuorodos — bus paprastas teksto receptas.</div>
+
+  <label>Aprašymas iš šaltinio (įklijuok bet kokia kalba)</label>
+  <textarea id="fRaw" placeholder="Nukopijuok Reels ar vaizdo įrašo aprašymą ir įklijuok čia…"></textarea>
+  <button class="btn ai" id="aiBtn" onclick="runAI()">✦ Išversti ir sutvarkyti su AI</button>
+  <div id="fMsg"></div>
+
+  <label>Pavadinimas</label><input id="fName">
+  <div class="two">
+    <div><label>Kategorija</label><select id="fCat"></select></div>
+    <div><label>Porcijos</label><input id="fPort" type="number" min="1"></div>
+  </div>
+  <label>Ingredientai (po vieną eilutėje)</label>
+  <textarea id="fIng" placeholder="500 g miltų&#10;2 kiaušiniai"></textarea>
+  <label>Gaminimas (po vieną žingsnį eilutėje)</label>
+  <textarea id="fSteps" style="min-height:140px"></textarea>
+  <label>Pastabos</label><input id="fNotes">
+  <label>Žymos (kableliais)</label><input id="fTags" placeholder="greita, vištiena, be glitimo">
+
+  <label>Nuotraukos (iki 3)</label>
+  <div class="hint">Iš Reels: sustabdyk vaizdą, padaryk ekrano nuotrauką ir įkelk čia.</div>
+  <div class="photos" id="fPhotos"></div>
+  <input id="fFile" type="file" accept="image/*" multiple class="hidden" onchange="addPhotos(this.files)">
+
+  <div class="actions">
+    <button class="btn primary" id="saveBtn" style="flex:1" onclick="save()">Išsaugoti</button>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="detail" class="sheet hidden"></div>
+
+<!-- SETTINGS -->
+<div id="settings" class="sheet hidden">
+  <div class="bar"><h2>Nustatymai</h2><button class="btn ghost" onclick="$('settings').classList.add('hidden')">Uždaryti</button></div>
+  <label>Anthropic API raktas</label>
+  <input id="sKey" type="password" placeholder="sk-ant-…">
+  <div class="hint">Raktas saugomas tik šiame įrenginyje (naršyklėje). Gaunamas console.anthropic.com.</div>
+  <label>Modelis</label>
+  <input id="sModel" value="claude-sonnet-4-6">
+  <button class="btn primary" style="width:100%;margin-top:16px" onclick="saveSettings()">Išsaugoti nustatymus</button>
+  <div style="margin-top:30px;color:var(--muted);font-size:14px" id="sUser"></div>
+  <button class="btn ghost danger" style="width:100%;margin-top:10px" onclick="logout()">Atsijungti</button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDDDOtGU7Au8sLkoJ-u7glbG52LlBn7B5w",
+  authDomain: "trucks-and-trailers-efbf8.firebaseapp.com",
+  projectId: "trucks-and-trailers-efbf8",
+  storageBucket: "trucks-and-trailers-efbf8.firebasestorage.app",
+  messagingSenderId: "805660424968",
+  appId: "1:805660424968:web:f292e8b77425a151908abd"
+};
+const COLLECTION = "receptai";
+const CATS = ["Pusryčiai","Sriubos","Pagrindiniai","Salotos","Užkandžiai","Desertai","Kepiniai","Gėrimai","Kita"];
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth(), db = firebase.firestore();
+const $ = id => document.getElementById(id);
+let user = null, recipes = [], unsub = null, activeCat = "Visi", editingId = null, photos = [];
+
+/* ---------- auth ---------- */
+auth.onAuthStateChanged(u => {
+  user = u;
+  $('login').classList.toggle('hidden', !!u);
+  $('app').classList.toggle('hidden', !u);
+  if (unsub) { unsub(); unsub = null; }
+  if (u) subscribe();
+});
+function authErr(e){ $('lMsg').innerHTML = `<div class="msg err">${e.message}</div>`; }
+function login(){ auth.signInWithEmailAndPassword($('lEmail').value.trim(), $('lPass').value).catch(authErr); }
+function register(){ auth.createUserWithEmailAndPassword($('lEmail').value.trim(), $('lPass').value).catch(authErr); }
+function logout(){ auth.signOut(); $('settings').classList.add('hidden'); }
+
+/* ---------- data ---------- */
+function subscribe(){
+  unsub = db.collection(COLLECTION).where('uid','==',user.uid).onSnapshot(snap => {
+    recipes = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    recipes.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+    renderChips(); render();
+  }, e => toast('Klaida skaitant: ' + e.message));
+}
+
+/* ---------- list ---------- */
+function renderChips(){
+  const cats = ["Visi", ...CATS.filter(c => recipes.some(r => r.kategorija === c))];
+  $('chips').innerHTML = cats.map(c => `<button class="chip ${c===activeCat?'on':''}" onclick="activeCat='${c}';renderChips();render()">${c}</button>`).join('');
+}
+function thumb(r){
+  if (r.nuotraukos && r.nuotraukos[0]) return `<img src="${r.nuotraukos[0]}" alt="">`;
+  const yt = ytId(r.url); if (yt) return `<img src="https://img.youtube.com/vi/${yt}/hqdefault.jpg" alt="">`;
+  return '🍲';
+}
+function srcLabel(r){ return {youtube:'YouTube',facebook:'Facebook',instagram:'Instagram',tiktok:'TikTok',link:'Nuoroda'}[r.saltinis] || ''; }
+function render(){
+  const q = $('q').value.trim().toLowerCase();
+  const list = recipes.filter(r => (activeCat==='Visi' || r.kategorija===activeCat) &&
+    (!q || [r.pavadinimas, r.ingredientai, r.zingsniai, r.zymos, r.pastabos].join(' ').toLowerCase().includes(q)));
+  $('grid').innerHTML = list.map(r => `
+    <button class="card" onclick="openDetail('${r.id}')">
+      <div class="ph">${thumb(r)}${srcLabel(r)?`<span class="src">${srcLabel(r)}</span>`:''}</div>
+      <div class="t"><h3>${esc(r.pavadinimas||'Be pavadinimo')}</h3><div class="k">${esc(r.kategorija||'')}${r.porcijos?` · ${r.porcijos} porc.`:''}</div></div>
+    </button>`).join('');
+  $('empty').classList.toggle('hidden', list.length > 0);
+}
+
+/* ---------- source detection ---------- */
+function ytId(u){
+  if (!u) return null;
+  const m = u.match(/(?:youtu\.be\/|v=|shorts\/|embed\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+function sourceOf(u){
+  if (!u) return 'text';
+  if (/youtu/.test(u)) return 'youtube';
+  if (/facebook\.com|fb\.watch|fb\.com/.test(u)) return 'facebook';
+  if (/instagram\.com/.test(u)) return 'instagram';
+  if (/tiktok\.com/.test(u)) return 'tiktok';
+  return 'link';
+}
+function detectSource(){
+  const s = sourceOf($('fUrl').value.trim());
+  $('fSrcHint').textContent = {
+    text:'Be nuorodos — bus paprastas teksto receptas.',
+    youtube:'YouTube — miniatiūra ir vaizdo įrašas bus rodomi automatiškai.',
+    facebook:'Facebook — nukopijuok aprašymą į laukelį žemiau, nuotraukas įkelk kaip ekrano nuotraukas.',
+    instagram:'Instagram — nukopijuok aprašymą į laukelį žemiau, nuotraukas įkelk kaip ekrano nuotraukas.',
+    tiktok:'TikTok — nukopijuok aprašymą į laukelį žemiau.',
+    link:'Nuoroda bus išsaugota prie recepto.'
+  }[s];
+}
+
+/* ---------- form ---------- */
+$('fCat').innerHTML = CATS.map(c => `<option>${c}</option>`).join('');
+function openForm(r){
+  editingId = r ? r.id : null; photos = r ? [...(r.nuotraukos||[])] : [];
+  $('fTitle').textContent = r ? 'Redaguoti receptą' : 'Naujas receptas';
+  $('fUrl').value = r?.url || ''; $('fRaw').value = r?.aprasymas || '';
+  $('fName').value = r?.pavadinimas || ''; $('fCat').value = r?.kategorija || 'Pagrindiniai';
+  $('fPort').value = r?.porcijos || ''; $('fIng').value = r?.ingredientai || '';
+  $('fSteps').value = r?.zingsniai || ''; $('fNotes').value = r?.pastabos || ''; $('fTags').value = r?.zymos || '';
+  $('fMsg').innerHTML = ''; detectSource(); renderPhotos();
+  $('detail').classList.add('hidden'); $('form').classList.remove('hidden'); window.scrollTo(0,0);
+}
+function closeForm(){ $('form').classList.add('hidden'); }
+function renderPhotos(){
+  $('fPhotos').innerHTML = photos.map((p,i) => `<div class="p"><img src="${p}" alt=""><button class="x" onclick="photos.splice(${i},1);renderPhotos()">×</button></div>`).join('')
+    + (photos.length < 3 ? `<button class="p add" onclick="$('fFile').click()">+</button>` : '');
+}
+async function addPhotos(files){
+  for (const f of [...files]) { if (photos.length >= 3) break; photos.push(await compress(f)); }
+  $('fFile').value = ''; renderPhotos();
+}
+function compress(file){
+  return new Promise(res => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const max = 900, s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = img.width*s; c.height = img.height*s;
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', .72));
+    };
+    img.src = url;
+  });
+}
+async function save(){
+  const name = $('fName').value.trim();
+  if (!name) { $('fMsg').innerHTML = '<div class="msg err">Įrašyk pavadinimą.</div>'; return; }
+  const url = $('fUrl').value.trim();
+  const data = {
+    uid:user.uid, pavadinimas:name, url, saltinis:sourceOf(url), aprasymas:$('fRaw').value.trim(),
+    kategorija:$('fCat').value, porcijos:Number($('fPort').value)||null,
+    ingredientai:$('fIng').value.trim(), zingsniai:$('fSteps').value.trim(),
+    pastabos:$('fNotes').value.trim(), zymos:$('fTags').value.trim(), nuotraukos:photos,
+    updatedAt:Date.now()
+  };
+  $('saveBtn').disabled = true;
+  try {
+    if (editingId) await db.collection(COLLECTION).doc(editingId).update(data);
+    else { data.createdAt = Date.now(); await db.collection(COLLECTION).add(data); }
+    closeForm(); toast('Išsaugota');
+  } catch(e) { $('fMsg').innerHTML = `<div class="msg err">Nepavyko išsaugoti: ${e.message}</div>`; }
+  $('saveBtn').disabled = false;
+}
+
+/* ---------- AI ---------- */
+async function runAI(){
+  const raw = $('fRaw').value.trim();
+  if (!raw) { $('fMsg').innerHTML = '<div class="msg err">Pirmiausia įklijuok aprašymą.</div>'; return; }
+  const key = localStorage.getItem('anthropicKey');
+  if (!key) { $('fMsg').innerHTML = '<div class="msg err">Nustatymuose įvesk Anthropic API raktą.</div>'; return; }
+  const btn = $('aiBtn'); btn.disabled = true; btn.textContent = 'Verčiama…'; $('fMsg').innerHTML = '';
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model: localStorage.getItem('anthropicModel') || 'claude-sonnet-4-6', max_tokens:1500,
+        system:'Tu tvarkai receptus. Gauni recepto aprašymą bet kokia kalba (dažnai iš socialinių tinklų, su emoji ir grotažymėmis). Išversk į taisyklingą lietuvių kalbą ir grąžink TIK JSON be jokio kito teksto ir be markdown: {"pavadinimas":string,"kategorija":one of ['+CATS.map(c=>'"'+c+'"').join(',')+'],"porcijos":number|null,"ingredientai":[string],"zingsniai":[string],"pastabos":string,"zymos":[string]}. Ingredientai su kiekiais, matavimo vienetai metriniai. Žingsniai trumpi, aiškūs, chronologiški. Grotažymes ir reklamą praleisk.',
+        messages:[{role:'user', content:raw}]
+      })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message);
+    const txt = d.content.map(c => c.text||'').join('').replace(/```json|```/g,'').trim();
+    const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}')+1));
+    if (j.pavadinimas) $('fName').value = j.pavadinimas;
+    if (CATS.includes(j.kategorija)) $('fCat').value = j.kategorija;
+    if (j.porcijos) $('fPort').value = j.porcijos;
+    if (j.ingredientai?.length) $('fIng').value = j.ingredientai.join('\n');
+    if (j.zingsniai?.length) $('fSteps').value = j.zingsniai.join('\n');
+    if (j.pastabos) $('fNotes').value = j.pastabos;
+    if (j.zymos?.length) $('fTags').value = j.zymos.join(', ');
+    $('fMsg').innerHTML = '<div class="msg ok">Sutvarkyta — peržiūrėk laukelius ir išsaugok.</div>';
+  } catch(e) { $('fMsg').innerHTML = `<div class="msg err">AI klaida: ${e.message}</div>`; }
+  btn.disabled = false; btn.textContent = '✦ Išversti ir sutvarkyti su AI';
+}
+
+/* ---------- detail ---------- */
+function openDetail(id){
+  const r = recipes.find(x => x.id === id); if (!r) return;
+  const yt = ytId(r.url);
+  const media = [
+    ...(r.nuotraukos||[]).map(p => `<img src="${p}" alt="">`),
+    yt ? `<iframe src="https://www.youtube.com/embed/${yt}" allow="fullscreen" allowfullscreen></iframe>` : ''
+  ].join('');
+  const ing = (r.ingredientai||'').split('\n').filter(Boolean);
+  const steps = (r.zingsniai||'').split('\n').filter(Boolean);
+  const tags = (r.zymos||'').split(',').map(t=>t.trim()).filter(Boolean);
+  $('detail').innerHTML = `
+    <div class="bar"><button class="btn ghost" onclick="$('detail').classList.add('hidden')">‹ Atgal</button>
+      <button class="btn ghost" onclick="openForm(recipes.find(x=>x.id==='${r.id}'))">Redaguoti</button></div>
+    <div class="detail">
+      ${media ? `<div class="hero">${media}</div>` : ''}
+      <h2>${esc(r.pavadinimas)}</h2>
+      <div class="meta">${esc(r.kategorija||'')}${r.porcijos?` · ${r.porcijos} porc.`:''}${srcLabel(r)?` · ${srcLabel(r)}`:''}</div>
+      ${tags.length ? `<div class="tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
+      ${r.url ? `<a class="linkbox" href="${esc(r.url)}" target="_blank" rel="noopener">🔗 ${esc(r.url)}</a>` : ''}
+      ${ing.length ? `<h3>Ingredientai</h3><ul class="ing">${ing.map(i=>`<li onclick="this.classList.toggle('done')"><input type="checkbox" onclick="event.stopPropagation();this.parentNode.classList.toggle('done')"><span>${esc(i)}</span></li>`).join('')}</ul>` : ''}
+      ${steps.length ? `<h3>Gaminimas</h3><ol class="steps">${steps.map(s=>`<li><span>${esc(s)}</span></li>`).join('')}</ol>` : ''}
+      ${r.pastabos ? `<h3>Pastabos</h3><p>${esc(r.pastabos)}</p>` : ''}
+      ${r.aprasymas && !ing.length && !steps.length ? `<h3>Aprašymas</h3><div class="raw">${esc(r.aprasymas)}</div>` : ''}
+      <div class="actions">
+        <button class="btn ghost" style="flex:1" onclick="share('${r.id}')">Dalintis</button>
+        <button class="btn ghost danger" onclick="del('${r.id}')">Ištrinti</button>
+      </div>
+    </div>`;
+  $('detail').classList.remove('hidden'); window.scrollTo(0,0);
+}
+async function del(id){
+  if (!confirm('Ištrinti šį receptą?')) return;
+  await db.collection(COLLECTION).doc(id).delete();
+  $('detail').classList.add('hidden'); toast('Ištrinta');
+}
+function share(id){
+  const r = recipes.find(x => x.id === id);
+  const text = `${r.pavadinimas}\n\nIngredientai:\n${r.ingredientai}\n\nGaminimas:\n${(r.zingsniai||'').split('\n').map((s,i)=>`${i+1}. ${s}`).join('\n')}${r.url?`\n\n${r.url}`:''}`;
+  if (navigator.share) navigator.share({title:r.pavadinimas, text}).catch(()=>{});
+  else { navigator.clipboard.writeText(text); toast('Nukopijuota'); }
+}
+
+/* ---------- settings ---------- */
+function openSettings(){
+  $('sKey').value = localStorage.getItem('anthropicKey') || '';
+  $('sModel').value = localStorage.getItem('anthropicModel') || 'claude-sonnet-4-6';
+  $('sUser').textContent = 'Prisijungęs: ' + (user?.email || '');
+  $('settings').classList.remove('hidden');
+}
+function saveSettings(){
+  localStorage.setItem('anthropicKey', $('sKey').value.trim());
+  localStorage.setItem('anthropicModel', $('sModel').value.trim() || 'claude-sonnet-4-6');
+  $('settings').classList.add('hidden'); toast('Nustatymai išsaugoti');
+}
+
+/* ---------- utils ---------- */
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+let tt; function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2200); }
+</script>
+</body>
+</html>
