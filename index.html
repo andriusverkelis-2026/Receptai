@@ -151,6 +151,9 @@
   <label>Nuoroda (Facebook, Instagram, YouTube, kita)</label>
   <input id="fUrl" placeholder="https://…" oninput="detectSource()">
   <div class="hint" id="fSrcHint">Be nuorodos — bus paprastas teksto receptas.</div>
+  <button class="btn ai hidden" id="urlBtn" onclick="runFromUrl()">✦ Ištraukti receptą ir nuotraukas iš nuorodos</button>
+  <button class="btn ghost" style="width:100%;margin-top:10px" onclick="$('fBook').click()">📷 Nufotografuoti receptą iš knygos</button>
+  <input id="fBook" type="file" accept="image/*" capture="environment" class="hidden" onchange="runFromBook(this.files[0])">
 
   <label>Aprašymas iš šaltinio (įklijuok bet kokia kalba)</label>
   <textarea id="fRaw" placeholder="Nukopijuok Reels ar vaizdo įrašo aprašymą ir įklijuok čia…"></textarea>
@@ -278,6 +281,7 @@ function sourceOf(u){
 }
 function detectSource(){
   const s = sourceOf($('fUrl').value.trim());
+  $('urlBtn').classList.toggle('hidden', s !== 'link');
   $('fSrcHint').textContent = {
     text:'Be nuorodos — bus paprastas teksto receptas.',
     youtube:'YouTube — miniatiūra ir vaizdo įrašas bus rodomi automatiškai.',
@@ -309,15 +313,16 @@ async function addPhotos(files){
   for (const f of [...files]) { if (photos.length >= 3) break; photos.push(await compress(f)); }
   $('fFile').value = ''; renderPhotos();
 }
-function compress(file){
-  return new Promise(res => {
+function compress(file, max = 900, q = .72){
+  return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
-      const max = 900, s = Math.min(1, max / Math.max(img.width, img.height));
+      const s = Math.min(1, max / Math.max(img.width, img.height));
       const c = document.createElement('canvas'); c.width = img.width*s; c.height = img.height*s;
       c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', .72));
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', q));
     };
+    img.onerror = () => rej(new Error('Nuotraukos nepavyko nuskaityti'));
     img.src = url;
   });
 }
@@ -342,36 +347,91 @@ async function save(){
 }
 
 /* ---------- AI ---------- */
+const AI_SYSTEM = 'Tu tvarkai receptus. Gauni recepto medžiagą bet kokia kalba (tekstą iš socialinių tinklų, tinklalapio turinį arba knygos puslapio nuotrauką). Išversk į taisyklingą lietuvių kalbą ir grąžink TIK JSON be jokio kito teksto ir be markdown: {"pavadinimas":string,"kategorija":one of ['+CATS.map(c=>'"'+c+'"').join(',')+'],"porcijos":number|null,"ingredientai":[string],"zingsniai":[string],"pastabos":string,"zymos":[string],"nuotraukos":[string]}. Ingredientai su kiekiais, metriniai vienetai. Žingsniai trumpi, aiškūs, chronologiški. Grotažymes ir reklamą praleisk. "nuotraukos" – iki 3 absoliučių URL adresų į paties patiekalo nuotraukas, jei jų yra pateiktoje medžiagoje (ne logotipai, ne reklamos, ne ikonos); jei nėra – tuščias masyvas.';
+
+async function callClaude(content){
+  const key = localStorage.getItem('anthropicKey');
+  if (!key) throw new Error('Nustatymuose įvesk Anthropic API raktą.');
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({ model: localStorage.getItem('anthropicModel') || 'claude-sonnet-4-6', max_tokens:2000, system:AI_SYSTEM, messages:[{role:'user', content}] })
+  });
+  const d = await r.json();
+  if (d.error) throw new Error(d.error.message);
+  const txt = d.content.map(c => c.text||'').join('').replace(/```json|```/g,'').trim();
+  return JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}')+1));
+}
+function applyRecipe(j){
+  if (j.pavadinimas) $('fName').value = j.pavadinimas;
+  if (CATS.includes(j.kategorija)) $('fCat').value = j.kategorija;
+  if (j.porcijos) $('fPort').value = j.porcijos;
+  if (j.ingredientai?.length) $('fIng').value = j.ingredientai.join('\n');
+  if (j.zingsniai?.length) $('fSteps').value = j.zingsniai.join('\n');
+  if (j.pastabos) $('fNotes').value = j.pastabos;
+  if (j.zymos?.length) $('fTags').value = j.zymos.join(', ');
+}
+function busy(btnId, on, label){ const b=$(btnId); b.disabled=on; if(on){ b.dataset.l=b.textContent; b.textContent=label; } else b.textContent=b.dataset.l; }
+function ok(m){ $('fMsg').innerHTML = `<div class="msg ok">${m}</div>`; }
+function err(m){ $('fMsg').innerHTML = `<div class="msg err">${m}</div>`; }
+
+/* 1. Įklijuotas aprašymas */
 async function runAI(){
   const raw = $('fRaw').value.trim();
-  if (!raw) { $('fMsg').innerHTML = '<div class="msg err">Pirmiausia įklijuok aprašymą.</div>'; return; }
-  const key = localStorage.getItem('anthropicKey');
-  if (!key) { $('fMsg').innerHTML = '<div class="msg err">Nustatymuose įvesk Anthropic API raktą.</div>'; return; }
-  const btn = $('aiBtn'); btn.disabled = true; btn.textContent = 'Verčiama…'; $('fMsg').innerHTML = '';
+  if (!raw) return err('Pirmiausia įklijuok aprašymą.');
+  busy('aiBtn', true, 'Verčiama…'); $('fMsg').innerHTML='';
+  try { applyRecipe(await callClaude(raw)); ok('Sutvarkyta — peržiūrėk laukelius ir išsaugok.'); }
+  catch(e){ err('AI klaida: ' + e.message); }
+  busy('aiBtn', false);
+}
+
+/* 2. Receptas iš kito tinklalapio (per r.jina.ai skaitytuvą) */
+async function runFromUrl(){
+  const url = $('fUrl').value.trim();
+  if (!url) return err('Įklijuok nuorodą.');
+  busy('urlBtn', true, 'Skaitomas puslapis…'); $('fMsg').innerHTML='';
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model: localStorage.getItem('anthropicModel') || 'claude-sonnet-4-6', max_tokens:1500,
-        system:'Tu tvarkai receptus. Gauni recepto aprašymą bet kokia kalba (dažnai iš socialinių tinklų, su emoji ir grotažymėmis). Išversk į taisyklingą lietuvių kalbą ir grąžink TIK JSON be jokio kito teksto ir be markdown: {"pavadinimas":string,"kategorija":one of ['+CATS.map(c=>'"'+c+'"').join(',')+'],"porcijos":number|null,"ingredientai":[string],"zingsniai":[string],"pastabos":string,"zymos":[string]}. Ingredientai su kiekiais, matavimo vienetai metriniai. Žingsniai trumpi, aiškūs, chronologiški. Grotažymes ir reklamą praleisk.',
-        messages:[{role:'user', content:raw}]
-      })
-    });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error.message);
-    const txt = d.content.map(c => c.text||'').join('').replace(/```json|```/g,'').trim();
-    const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}')+1));
-    if (j.pavadinimas) $('fName').value = j.pavadinimas;
-    if (CATS.includes(j.kategorija)) $('fCat').value = j.kategorija;
-    if (j.porcijos) $('fPort').value = j.porcijos;
-    if (j.ingredientai?.length) $('fIng').value = j.ingredientai.join('\n');
-    if (j.zingsniai?.length) $('fSteps').value = j.zingsniai.join('\n');
-    if (j.pastabos) $('fNotes').value = j.pastabos;
-    if (j.zymos?.length) $('fTags').value = j.zymos.join(', ');
-    $('fMsg').innerHTML = '<div class="msg ok">Sutvarkyta — peržiūrėk laukelius ir išsaugok.</div>';
-  } catch(e) { $('fMsg').innerHTML = `<div class="msg err">AI klaida: ${e.message}</div>`; }
-  btn.disabled = false; btn.textContent = '✦ Išversti ir sutvarkyti su AI';
+    const page = await fetch('https://r.jina.ai/' + url, {headers:{'Accept':'text/plain'}});
+    if (!page.ok) throw new Error('Puslapio nuskaityti nepavyko (' + page.status + ')');
+    let md = await page.text(); if (md.length > 60000) md = md.slice(0, 60000);
+    $('urlBtn').textContent = 'AI tvarko receptą…';
+    const j = await callClaude('Tinklalapio turinys:\n\n' + md);
+    applyRecipe(j);
+    if (!$('fRaw').value.trim()) $('fRaw').value = url;
+    let added = 0;
+    for (const u of (j.nuotraukos||[]).slice(0,3)) {
+      if (photos.length >= 3) break;
+      const b64 = await fetchImage(u); if (b64) { photos.push(b64); added++; }
+    }
+    renderPhotos();
+    ok('Receptas ištrauktas' + (added ? `, pridėtos ${added} nuotraukos.` : '. Nuotraukų puslapyje nerasta — įkelk ranka.'));
+  } catch(e){ err('Klaida: ' + e.message); }
+  busy('urlBtn', false);
+}
+async function fetchImage(u){
+  try {
+    const r = await fetch('https://images.weserv.nl/?url=' + encodeURIComponent(u.replace(/^https?:\/\//,'')) + '&w=900&output=jpg&q=75');
+    if (!r.ok) return null;
+    const blob = await r.blob(); if (blob.size < 5000) return null;
+    return await compress(blob);
+  } catch { return null; }
+}
+
+/* 3. Receptų knygos nuotrauka */
+async function runFromBook(file){
+  if (!file) return;
+  $('fBook').value = ''; $('fMsg').innerHTML='';
+  ok('Skaitoma knygos nuotrauka…');
+  try {
+    const full = await compress(file, 1600, .8);
+    const j = await callClaude([
+      {type:'image', source:{type:'base64', media_type:'image/jpeg', data: full.split(',')[1]}},
+      {type:'text', text:'Perskaityk šį recepto puslapį ir grąžink JSON.'}
+    ]);
+    applyRecipe(j);
+    if (photos.length < 3) { photos.push(await compress(file)); renderPhotos(); }
+    ok('Receptas nuskaitytas iš nuotraukos — peržiūrėk ir išsaugok.');
+  } catch(e){ err('Klaida: ' + e.message); }
 }
 
 /* ---------- detail ---------- */
