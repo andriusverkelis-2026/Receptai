@@ -154,7 +154,7 @@
   <div class="hint" id="fSrcHint">Be nuorodos — bus paprastas teksto receptas.</div>
   <button class="btn ai hidden" id="urlBtn" onclick="runFromUrl()">✦ Ištraukti receptą ir nuotraukas iš nuorodos</button>
   <button class="btn ghost" style="width:100%;margin-top:10px" onclick="$('fBook').click()">Įkelti nuotrauką</button>
-  <input id="fBook" type="file" accept="image/*" class="hidden" onchange="runFromBook(this.files[0])">
+  <input id="fBook" type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" class="hidden" onchange="runFromBook(this.files[0])">
 
   <label>Aprašymas iš šaltinio (įklijuok bet kokia kalba)</label>
   <textarea id="fRaw" placeholder="Nukopijuok Reels ar vaizdo įrašo aprašymą ir įklijuok čia…"></textarea>
@@ -176,7 +176,7 @@
   <label>Nuotraukos (iki 3)</label>
   <div class="hint">Iš Reels: sustabdyk vaizdą, padaryk ekrano nuotrauką ir įkelk čia.</div>
   <div class="photos" id="fPhotos"></div>
-  <input id="fFile" type="file" accept="image/*" multiple class="hidden" onchange="addPhotos(this.files)">
+  <input id="fFile" type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" multiple class="hidden" onchange="addPhotos(this.files)">
 
   <div class="actions">
     <button class="btn primary" id="saveBtn" style="flex:1" onclick="save()">Išsaugoti</button>
