@@ -153,6 +153,7 @@
   <input id="fUrl" placeholder="https://…" oninput="detectSource()">
   <div class="hint" id="fSrcHint">Be nuorodos — bus paprastas teksto receptas.</div>
   <button class="btn ai hidden" id="urlBtn" onclick="runFromUrl()">✦ Ištraukti receptą ir nuotraukas iš nuorodos</button>
+  <button class="btn ai hidden" id="vidBtn" onclick="runFromVideo()">✦ Ištraukti receptą iš vaizdo įrašo</button>
   <button class="btn ghost" style="width:100%;margin-top:10px" onclick="$('fBook').click()">Įkelti nuotrauką</button>
   <input id="fBook" type="file" accept="*/*" class="hidden" onchange="runFromBook(this.files[0])">
 
@@ -194,6 +195,11 @@
   <div class="hint">Raktas saugomas tik šiame įrenginyje (naršyklėje). Gaunamas console.anthropic.com.</div>
   <label>Modelis</label>
   <input id="sModel" value="claude-sonnet-4-6">
+  <label>Vaizdo įrašų serverio adresas</label>
+  <input id="sSrv" placeholder="https://2-29-46-155.sslip.io">
+  <label>Vaizdo įrašų serverio raktas</label>
+  <input id="sSrvKey" type="password">
+  <div class="hint">Abu parodomi paleidus install.sh serveryje. Reikalingi tik Reels / YouTube / TikTok ištraukimui.</div>
   <button class="btn primary" style="width:100%;margin-top:16px" onclick="saveSettings()">Išsaugoti nustatymus</button>
   <div style="margin-top:30px;color:var(--muted);font-size:14px" id="sUser"></div>
   <button class="btn ghost danger" style="width:100%;margin-top:10px" onclick="logout()">Atsijungti</button>
@@ -283,12 +289,13 @@ function sourceOf(u){
 function detectSource(){
   const s = sourceOf($('fUrl').value.trim());
   $('urlBtn').classList.toggle('hidden', s !== 'link');
+  $('vidBtn').classList.toggle('hidden', !['youtube','facebook','instagram','tiktok'].includes(s));
   $('fSrcHint').textContent = {
     text:'Be nuorodos — bus paprastas teksto receptas.',
-    youtube:'YouTube — miniatiūra ir vaizdo įrašas bus rodomi automatiškai.',
-    facebook:'Facebook — nukopijuok aprašymą į laukelį žemiau, nuotraukas įkelk kaip ekrano nuotraukas.',
-    instagram:'Instagram — nukopijuok aprašymą į laukelį žemiau, nuotraukas įkelk kaip ekrano nuotraukas.',
-    tiktok:'TikTok — nukopijuok aprašymą į laukelį žemiau.',
+    youtube:'YouTube — vaizdo įrašas rodomas automatiškai; mygtukas žemiau ištrauks aprašymą, garsą ir kadrus.',
+    facebook:'Facebook Reels — spausk mygtuką žemiau: serveris parsisiųs vaizdo įrašą, aprašymą, garsą ir 3 kadrus.',
+    instagram:'Instagram — spausk mygtuką žemiau: serveris parsisiųs vaizdo įrašą, aprašymą, garsą ir 3 kadrus.',
+    tiktok:'TikTok — spausk mygtuką žemiau: serveris parsisiųs vaizdo įrašą, aprašymą, garsą ir 3 kadrus.',
     link:'Nuoroda bus išsaugota prie recepto.'
   }[s];
 }
@@ -446,6 +453,32 @@ function imgSize(src){
   return new Promise((res, rej) => { const i = new Image(); i.onload = () => res({w:i.naturalWidth, h:i.naturalHeight}); i.onerror = rej; i.src = src; });
 }
 
+/* 4. Vaizdo įrašas (Reels / YouTube / TikTok) per savo serverį */
+async function runFromVideo(){
+  const url = $('fUrl').value.trim();
+  const srv = localStorage.getItem('srvUrl'), key = localStorage.getItem('srvKey');
+  if (!srv || !key) return err('Nustatymuose įvesk vaizdo įrašų serverio adresą ir raktą.');
+  busy('vidBtn', true, 'Serveris siunčiasi vaizdo įrašą… (iki 1–2 min)'); $('fMsg').innerHTML='';
+  try {
+    const r = await fetch(srv + '/extract', {method:'POST', headers:{'Content-Type':'application/json','X-Token':key}, body:JSON.stringify({url})});
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || ('Serverio klaida ' + r.status));
+    const parts = [];
+    if (d.title) parts.push('Pavadinimas: ' + d.title);
+    if (d.description) parts.push('Aprašymas:\n' + d.description);
+    if (d.transcript) parts.push('Kas sakoma vaizdo įraše' + (d.language ? ' (' + d.language + ')' : '') + ':\n' + d.transcript);
+    if (!parts.length) throw new Error('Vaizdo įrašas be aprašymo ir be kalbos — įklijuok tekstą ranka.');
+    $('fRaw').value = parts.join('\n\n');
+    $('vidBtn').textContent = 'AI tvarko receptą…';
+    applyRecipe(await callClaude($('fRaw').value));
+    let added = 0;
+    for (const f of (d.frames||[])) { if (photos.length >= 3) break; photos.push(f); added++; }
+    renderPhotos();
+    ok('Receptas ištrauktas' + (added ? `, pridėti ${added} kadrai.` : '.') + ' Peržiūrėk ir išsaugok.');
+  } catch(e){ err('Klaida: ' + e.message); }
+  busy('vidBtn', false);
+}
+
 /* 3. Receptų knygos nuotrauka */
 async function runFromBook(file){
   if (!file) return;
@@ -511,12 +544,14 @@ function share(id){
 function openSettings(){
   $('sKey').value = localStorage.getItem('anthropicKey') || '';
   $('sModel').value = localStorage.getItem('anthropicModel') || 'claude-sonnet-4-6';
+  $('sSrv').value = localStorage.getItem('srvUrl') || ''; $('sSrvKey').value = localStorage.getItem('srvKey') || '';
   $('sUser').textContent = 'Prisijungęs: ' + (user?.email || '');
   $('settings').classList.remove('hidden');
 }
 function saveSettings(){
   localStorage.setItem('anthropicKey', $('sKey').value.trim());
   localStorage.setItem('anthropicModel', $('sModel').value.trim() || 'claude-sonnet-4-6');
+  localStorage.setItem('srvUrl', $('sSrv').value.trim().replace(/\/+$/,'')); localStorage.setItem('srvKey', $('sSrvKey').value.trim());
   $('settings').classList.add('hidden'); toast('Nustatymai išsaugoti');
 }
 
