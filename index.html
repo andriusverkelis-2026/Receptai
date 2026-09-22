@@ -153,8 +153,8 @@
   <input id="fUrl" placeholder="https://…" oninput="detectSource()">
   <div class="hint" id="fSrcHint">Be nuorodos — bus paprastas teksto receptas.</div>
   <button class="btn ai hidden" id="urlBtn" onclick="runFromUrl()">✦ Ištraukti receptą ir nuotraukas iš nuorodos</button>
-  <button class="btn ghost" style="width:100%;margin-top:10px" onclick="$('fBook').click()">📷 Nufotografuoti receptą iš knygos</button>
-  <input id="fBook" type="file" accept="image/*" capture="environment" class="hidden" onchange="runFromBook(this.files[0])">
+  <button class="btn ghost" style="width:100%;margin-top:10px" onclick="$('fBook').click()">📷 Nuotrauka iš knygos / ekrano nuotrauka</button>
+  <input id="fBook" type="file" accept="image/*" class="hidden" onchange="runFromBook(this.files[0])">
 
   <label>Aprašymas iš šaltinio (įklijuok bet kokia kalba)</label>
   <textarea id="fRaw" placeholder="Nukopijuok Reels ar vaizdo įrašo aprašymą ir įklijuok čia…"></textarea>
@@ -392,16 +392,20 @@ async function runFromUrl(){
   if (!url) return err('Įklijuok nuorodą.');
   busy('urlBtn', true, 'Skaitomas puslapis…'); $('fMsg').innerHTML='';
   try {
-    const page = await fetch('https://r.jina.ai/' + url, {headers:{'Accept':'text/plain'}});
+    const page = await fetch('https://r.jina.ai/' + url, {headers:{'Accept':'text/plain','X-With-Images-Summary':'true'}});
     if (!page.ok) throw new Error('Puslapio nuskaityti nepavyko (' + page.status + ')');
-    let md = await page.text(); if (md.length > 60000) md = md.slice(0, 60000);
+    let md = await page.text();
+    const imgs = collectImages(md, url);
+    if (md.length > 50000) md = md.slice(0, 50000);
     $('urlBtn').textContent = 'AI tvarko receptą…';
-    const j = await callClaude('Tinklalapio turinys:\n\n' + md);
+    const j = await callClaude('Tinklalapio turinys:\n\n' + md + '\n\nPuslapyje rastos nuotraukos (pasirink iki 3 paties patiekalo nuotraukų, grąžink tikslius URL):\n' + imgs.slice(0,40).join('\n'));
     applyRecipe(j);
     if (!$('fRaw').value.trim()) $('fRaw').value = url;
+    let cand = (j.nuotraukos||[]).filter(u => /^https?:/.test(u));
+    if (!cand.length) cand = imgs;
     let added = 0;
-    for (const u of (j.nuotraukos||[]).slice(0,3)) {
-      if (photos.length >= 3) break;
+    for (const u of cand) {
+      if (photos.length >= 3 || added >= 3) break;
       const b64 = await fetchImage(u); if (b64) { photos.push(b64); added++; }
     }
     renderPhotos();
@@ -409,13 +413,32 @@ async function runFromUrl(){
   } catch(e){ err('Klaida: ' + e.message); }
   busy('urlBtn', false);
 }
+function collectImages(md, base){
+  const found = new Set();
+  const re = /(https?:\/\/[^\s)"'<>]+?\.(?:jpe?g|png|webp)(?:\?[^\s)"'<>]*)?)/gi;
+  let m; while ((m = re.exec(md))) found.add(m[1]);
+  const bad = /logo|icon|avatar|sprite|badge|banner|ads?[\/\-_.]|pixel|emoji|flag|arrow|button|placeholder|blank|spacer|1x1|favicon|svg/i;
+  return [...found].filter(u => !bad.test(u) && !/\b(?:\d{1,2}x\d{1,2})\b/.test(u));
+}
 async function fetchImage(u){
+  const src = 'https://images.weserv.nl/?url=' + encodeURIComponent(u.replace(/^https?:\/\//,'')) + '&w=900&output=jpg&q=75';
   try {
-    const r = await fetch('https://images.weserv.nl/?url=' + encodeURIComponent(u.replace(/^https?:\/\//,'')) + '&w=900&output=jpg&q=75');
-    if (!r.ok) return null;
-    const blob = await r.blob(); if (blob.size < 5000) return null;
-    return await compress(blob);
-  } catch { return null; }
+    const r = await fetch(src);
+    if (r.ok) {
+      const blob = await r.blob();
+      if (blob.size > 8000) {
+        const b64 = await compress(blob);
+        const dims = await imgSize(b64);
+        if (dims.w >= 300 && dims.h >= 200) return b64;
+        return null;
+      }
+    }
+  } catch {}
+  try { const d = await imgSize(u); if (d.w >= 300 && d.h >= 200) return u; } catch {}
+  return null;
+}
+function imgSize(src){
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res({w:i.naturalWidth, h:i.naturalHeight}); i.onerror = rej; i.src = src; });
 }
 
 /* 3. Receptų knygos nuotrauka */
