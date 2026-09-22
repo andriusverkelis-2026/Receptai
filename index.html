@@ -154,7 +154,7 @@
   <div class="hint" id="fSrcHint">Be nuorodos — bus paprastas teksto receptas.</div>
   <button class="btn ai hidden" id="urlBtn" onclick="runFromUrl()">✦ Ištraukti receptą ir nuotraukas iš nuorodos</button>
   <button class="btn ghost" style="width:100%;margin-top:10px" onclick="$('fBook').click()">Įkelti nuotrauką</button>
-  <input id="fBook" type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" class="hidden" onchange="runFromBook(this.files[0])">
+  <input id="fBook" type="file" accept="*/*" class="hidden" onchange="runFromBook(this.files[0])">
 
   <label>Aprašymas iš šaltinio (įklijuok bet kokia kalba)</label>
   <textarea id="fRaw" placeholder="Nukopijuok Reels ar vaizdo įrašo aprašymą ir įklijuok čia…"></textarea>
@@ -176,7 +176,7 @@
   <label>Nuotraukos (iki 3)</label>
   <div class="hint">Iš Reels: sustabdyk vaizdą, padaryk ekrano nuotrauką ir įkelk čia.</div>
   <div class="photos" id="fPhotos"></div>
-  <input id="fFile" type="file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif" multiple class="hidden" onchange="addPhotos(this.files)">
+  <input id="fFile" type="file" accept="*/*" multiple class="hidden" onchange="addPhotos(this.files)">
 
   <div class="actions">
     <button class="btn primary" id="saveBtn" style="flex:1" onclick="save()">Išsaugoti</button>
@@ -310,8 +310,13 @@ function renderPhotos(){
   $('fPhotos').innerHTML = photos.map((p,i) => `<div class="p"><img src="${p}" alt=""><button class="x" onclick="photos.splice(${i},1);renderPhotos()">×</button></div>`).join('')
     + (photos.length < 3 ? `<button class="p add" onclick="$('fFile').click()">+</button>` : '');
 }
+function isImg(f){ return /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|gif|bmp)$/i.test(f.name); }
 async function addPhotos(files){
-  for (const f of [...files]) { if (photos.length >= 3) break; photos.push(await compress(f)); }
+  for (const f of [...files]) {
+    if (photos.length >= 3) break;
+    if (!isImg(f)) { err('Pasirink nuotrauką (jpg, png, webp).'); continue; }
+    try { photos.push(await compress(f)); } catch(e){ err(e.message); }
+  }
   $('fFile').value = ''; renderPhotos();
 }
 function compress(file, max = 900, q = .72){
@@ -444,6 +449,7 @@ function imgSize(src){
 /* 3. Receptų knygos nuotrauka */
 async function runFromBook(file){
   if (!file) return;
+  if (!isImg(file)) { $('fBook').value=''; return err('Pasirink nuotrauką (jpg, png, webp).'); }
   $('fBook').value = ''; $('fMsg').innerHTML='';
   ok('Skaitoma knygos nuotrauka…');
   try {
